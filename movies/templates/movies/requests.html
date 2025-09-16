@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Request a Movie</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ template_data.form.as_p }}
+    <button type="submit">Submit Request</button>
+  </form>
+
+  <h3>Your Movie Requests</h3>
+  <ul>
+    {% for req in template_data.requests %}
+      <li>
+        <strong>{{ req.name }}</strong> - {{ req.description }} 
+        <form method="post" action="{% url 'movies.delete_request' req.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit">Delete</button>
+        </form>
+      </li>
+    {% empty %}
+      <li>No requests yet.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
