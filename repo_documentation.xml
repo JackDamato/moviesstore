@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<repository>
+  <metadata>
+    <name>moviesstore</name>
+    <owner>JackDamato</owner>
+    <branch>main</branch>
+    <description>Small Django-based movie store web application. Provides browsing movies, creating reviews, shopping cart, and order history for authenticated users.</description>
+    <created>unknown</created>
+    <last_scanned>2025-09-15</last_scanned>
+    <rootPath>./</rootPath>
+    <pythonFramework>Django</pythonFramework>
+    <djangoVersion>5.x (in project header)</djangoVersion>
+    <database>sqlite3 (db.sqlite3)</database>
+  </metadata>
+
+  <structure>
+    <apps>
+      <app name="home" path="home">Contains landing pages: index and about. URLs mounted at root ''.</app>
+      <app name="movies" path="movies">Models: Movie, Review. Views: index/show/create_review/edit_review/delete_review. URLs under '/movies/'. Templates under 'movies/templates/movies/'.</app>
+      <app name="accounts" path="accounts">Custom signup/login/logout and orders view using Django auth. Templates under 'accounts/templates/accounts/'.</app>
+      <app name="cart" path="cart">Shopping cart stored in session, Order and Item models, purchase flow. Templates under 'cart/templates/cart/'.</app>
+    </apps>
+
+    <files>
+      <file>manage.py</file>
+      <file>db.sqlite3</file>
+      <file>moviesstore/settings.py</file>
+      <file>moviesstore/urls.py</file>
+      <file>moviesstore/wsgi.py</file>
+      <file>moviesstore/asgi.py</file>
+      <file>movies/models.py</file>
+      <file>movies/views.py</file>
+      <file>movies/urls.py</file>
+      <file>movies/admin.py</file>
+      <file>movies/templates/movies/index.html</file>
+      <file>movies/templates/movies/show.html</file>
+      <file>movies/templates/movies/edit_review.html</file>
+      <file>cart/models.py</file>
+      <file>cart/views.py</file>
+      <file>cart/urls.py</file>
+      <file>cart/utils.py</file>
+      <file>cart/templates/cart/index.html</file>
+      <file>cart/templates/cart/purchase.html</file>
+      <file>accounts/views.py</file>
+      <file>accounts/forms.py</file>
+      <file>accounts/urls.py</file>
+      <file>accounts/templates/accounts/signup.html</file>
+      <file>accounts/templates/accounts/login.html</file>
+      <file>accounts/templates/accounts/orders.html</file>
+      <file>moviesstore/templates/base.html</file>
+    </files>
+  </structure>
+
+  <models>
+    <model app="movies" name="Movie">
+      <fields>
+        <field name="id" type="AutoField" primary_key="true" />
+        <field name="name" type="CharField" max_length="255" />
+        <field name="price" type="IntegerField" description="stored as integer, treated as dollar amount in templates" />
+        <field name="description" type="TextField" />
+        <field name="image" type="ImageField" upload_to="movie_images/" />
+      </fields>
+      <admin>
+        <MovieAdmin ordering="name" search_fields="name" />
+      </admin>
+    </model>
+
+    <model app="movies" name="Review">
+      <fields>
+        <field name="id" type="AutoField" primary_key="true" />
+        <field name="comment" type="CharField" max_length="255" />
+        <field name="date" type="DateTimeField" auto_now_add="true" />
+        <field name="movie" type="ForeignKey" to="movies.Movie" on_delete="CASCADE" />
+        <field name="user" type="ForeignKey" to="auth.User" on_delete="CASCADE" />
+      </fields>
+    </model>
+
+    <model app="cart" name="Order">
+      <fields>
+        <field name="id" type="AutoField" primary_key="true" />
+        <field name="total" type="IntegerField" description="total in same units as Movie.price" />
+        <field name="date" type="DateTimeField" auto_now_add="true" />
+        <field name="user" type="ForeignKey" to="auth.User" on_delete="CASCADE" />
+      </fields>
+    </model>
+
+    <model app="cart" name="Item">
+      <fields>
+        <field name="id" type="AutoField" primary_key="true" />
+        <field name="price" type="IntegerField" />
+        <field name="quantity" type="IntegerField" />
+        <field name="order" type="ForeignKey" to="cart.Order" on_delete="CASCADE" />
+        <field name="movie" type="ForeignKey" to="movies.Movie" on_delete="CASCADE" />
+      </fields>
+    </model>
+  </models>
+
+  <urls>
+    <root>
+      <url path="admin/" view="django.contrib.admin" />
+      <url path="" include="home.urls" />
+      <url path="movies/" include="movies.urls" />
+      <url path="accounts/" include="accounts.urls" />
+      <url path="cart/" include="cart.urls" />
+    </root>
+
+    <app name="movies">
+      <endpoint path="" name="movies.index" view="movies.views.index" methods="GET" description="List movies; accepts optional ?search= query param" />
+      <endpoint path="<int:id>/" name="movies.show" view="movies.views.show" methods="GET" description="Show movie details and reviews" />
+      <endpoint path="<int:id>/review/create/" name="movies.create_review" view="movies.views.create_review" methods="POST" auth_required="true" description="Create a review for movie with id" />
+      <endpoint path="<int:id>/review/<int:review_id>/edit/" name="movies.edit_review" view="movies.views.edit_review" methods="GET,POST" auth_required="true" description="Edit a review; only owner can edit" />
+      <endpoint path="<int:id>/review/<int:review_id>/delete/" name="movies.delete_review" view="movies.views.delete_review" methods="POST(GET used via link)" auth_required="true" description="Delete a review; implementation uses get_object_or_404 filtered by user for delete route" />
+    </app>
+
+    <app name="cart">
+      <endpoint path="" name="cart.index" view="cart.views.index" methods="GET" description="Display cart stored in session; calculates total with cart.utils.calculate_cart_total" />
+      <endpoint path="<int:id>/add/" name="cart.add" view="cart.views.add" methods="POST" description="Add movie id to session cart with quantity from POST['quantity']" />
+      <endpoint path="clear/" name="cart.clear" view="cart.views.clear" methods="GET" description="Clear session cart" />
+      <endpoint path="purchase/" name="cart.purchase" view="cart.views.purchase" methods="GET,POST" auth_required="true" description="Creates Order and Item records from session cart and empties session cart" />
+    </app>
+
+    <app name="accounts">
+      <endpoint path="signup" name="accounts.signup" view="accounts.views.signup" methods="GET,POST" description="User sign up using CustomUserCreationForm in accounts.forms" />
+      <endpoint path="login/" name="accounts.login" view="accounts.views.login" methods="GET,POST" description="Authenticate user and call Django auth_login" />
+      <endpoint path="logout/" name="accounts.logout" view="accounts.views.logout" methods="GET" auth_required="true" description="Logs out authenticated user" />
+      <endpoint path="orders/" name="accounts.orders" view="accounts.views.orders" methods="GET" auth_required="true" description="Lists orders for request.user" />
+    </app>
+  </urls>
+
+  <templates>
+    <template path="movies/templates/movies/index.html" purpose="List movies with search form; links to movie show" important_variables="template_data.movies: QuerySet of Movie" />
+    <template path="movies/templates/movies/show.html" purpose="Movie detail, reviews list, add-to-cart form, review creation form (when authenticated)" important_variables="template_data.movie, template_data.reviews, user" />
+    <template path="movies/templates/movies/edit_review.html" purpose="Edit review form" important_variables="template_data.review" />
+    <template path="cart/templates/cart/index.html" purpose="Cart view; reads session 'cart'; uses cart_filters to show quantity" important_variables="template_data.movies_in_cart, request.session.cart, template_data.cart_total" />
+    <template path="cart/templates/cart/purchase.html" purpose="Purchase confirmation" important_variables="template_data.order_id" />
+    <template path="accounts/templates/accounts/signup.html" purpose="Signup form rendering and submission" important_variables="template_data.form" />
+    <template path="accounts/templates/accounts/login.html" purpose="Login form" important_variables="template_data.error" />
+    <template path="accounts/templates/accounts/orders.html" purpose="List past orders and items" important_variables="template_data.orders" />
+    <template path="moviesstore/templates/base.html" purpose="Base layout used by all pages; static files and navbar likely defined here" />
+  </templates>
+
+  <utilities>
+    <utility path="cart/utils.py" name="calculate_cart_total" description="Iterates movies_in_cart and multiplies price by session-stored quantity. Expects session cart keys are stringified movie ids." />
+    <templatetags path="cart/templatetags/cart_filters.py">Provides 'get_quantity' filter used in cart index template</templatetags>
+  </utilities>
+
+  <auth>
+    <notes>Project uses Django's built-in auth. Several views decorated with @login_required: accounts.logout, accounts.orders, movies.create_review, movies.edit_review, movies.delete_review, cart.purchase. Signup uses a custom form `CustomUserCreationForm` located in `accounts/forms.py`.</notes>
+  </auth>
+
+  <sessions>
+    <notes>Cart stored in Django session under 'cart' key. The cart maps string movie ids to quantities (strings from POST). The session is cleared on purchase and clear endpoints.</notes>
+  </sessions>
+
+  <static_and_media>
+    <staticPath>moviesstore/static/</staticPath>
+    <mediaPath>media/movie_images/</mediaPath>
+    <mediaFiles>
+      <file>essm.jpg</file>
+      <file>godfather.jpg</file>
+      <file>inception.jpg</file>
+      <file>interstellar.jpg</file>
+      <file>lalaland.jpg</file>
+      <file>notebook.jpg</file>
+    </mediaFiles>
+  </static_and_media>
+
+  <tests>
+    <notes>Several `tests.py` files exist under apps (`movies/tests.py`, `cart/tests.py`, `accounts/tests.py`) but are empty or minimal; run `python manage.py test` to execute tests.</notes>
+  </tests>
+
+  <run_instructions>
+    <prereqs>
+      <python>3.10+ recommended (project used Django 5)</python>
+      <venv>Recommended to create virtualenv. Install Django if not present.</venv>
+    </prereqs>
+    <commands>
+      <command language="bash">python -m venv .venv</command>
+      <command language="bash">source .venv/bin/activate  # on Windows using bash: source .venv/Scripts/activate</command>
+      <command language="bash">pip install -r requirements.txt  # if missing, pip install Django</command>
+      <command language="bash">python manage.py migrate</command>
+      <command language="bash">python manage.py createsuperuser</command>
+      <command language="bash">python manage.py runserver</command>
+    </commands>
+    <notes>Project uses SQLite db at `db.sqlite3`. DEBUG = True in settings; SECRET_KEY is present in settings (not safe for production).</notes>
+  </run_instructions>
+
+  <security_and_limitations>
+    <note>DEBUG=True and SECRET_KEY checked into settings - remove before production. ALLOWED_HOSTS empty. No CSRF-exempt endpoints observed; forms include csrf_token where needed. File uploads use local MEDIA_ROOT; ensure MEDIA_URL/MEDIA_ROOT served in development (already added to urlpatterns).</note>
+  </security_and_limitations>
+
+  <llm_guidance>
+    <purpose>This section helps an LLM generate user stories, code changes, and PRs for this repository.</purpose>
+    <parsing_advice>
+      <item>Parse XML top-down: metadata -> structure -> models -> urls -> templates -> utilities</item>
+      <item>Model field types and relations are explicit; use them to propose DB migrations or API endpoints.</item>
+      <item>Templates list important variables to map view context to UI; use these names when building features.</item>
+    </parsing_advice>
+
+    <semantic_mapping>
+      <overview>
+        <description>Project follows Django's MVT (Model-View-Template) pattern. Models define database structure, Views contain request handling and business logic, Templates render HTML using context data supplied by views. Apps are organized into `home`, `movies`, `accounts`, and `cart` and are mounted via `moviesstore/urls.py`.</description>
+      </overview>
+
+      <models_to_views>
+        <mapping>
+          <model app="movies" name="Movie">Used by: movies.views.index, movies.views.show, cart.views.add (lookup), cart.views.purchase (order item population), templates: movies/index.html, movies/show.html.</model>
+          <model app="movies" name="Review">Used by: movies.views.show, movies.views.create_review, movies.views.edit_review, movies.views.delete_review; templates: movies/show.html, movies/edit_review.html.</model>
+          <model app="cart" name="Order">Created by: cart.views.purchase; read by: accounts.views.orders to list past orders; templates: accounts/orders.html, cart/purchase.html.</model>
+          <model app="cart" name="Item">Created in cart.views.purchase to associate Movie and Order; displayed in accounts/templates/accounts/orders.html via `order.item_set.all()`.</model>
+        </mapping>
+      </models_to_views>
+
+      <views_to_templates>
+        <mapping>
+          <view name="home.index">Renders `home/templates/home/index.html` via context `template_data`.</view>
+          <view name="movies.index">Renders `movies/templates/movies/index.html` with `template_data.movies` (QuerySet). Responsible for optional filtering by `search` query param.</view>
+          <view name="movies.show">Renders `movies/templates/movies/show.html` with `template_data.movie`, `template_data.reviews`; contains forms for adding to cart (POST to `cart.add`) and creating reviews (POST to `movies.create_review`).</view>
+          <view name="movies.create_review">Handles POST, requires auth, persists Review records, then redirects to `movies.show`.</view>
+          <view name="movies.edit_review">GET = renders `movies/edit_review.html`; POST = validates/updates Review; requires auth and owner check.</view>
+          <view name="cart.index">Renders `cart/templates/cart/index.html`, reads session `cart` and uses `cart.utils.calculate_cart_total` to compute total. Template uses `cart_filters.get_quantity` to show per-item quantities.</view>
+          <view name="cart.add">Accepts POST from `movies/show` add-to-cart form, updates session `cart` mapping (movie_id = quantity as posted string). Redirects to `cart.index`.</view>
+          <view name="cart.purchase">Requires auth; reads session `cart`, computes total, creates Order and Item objects, clears session `cart`, and renders `cart/purchase.html` with `template_data.order_id`.</view>
+          <view name="accounts.signup">Renders and validates `CustomUserCreationForm` defined in `accounts/forms.py`; on success redirects to login.</view>
+          <view name="accounts.login">Authenticates user with Django `authenticate` then `auth_login`; renders `accounts/login.html` with potential `template_data.error`.</view>
+          <view name="accounts.orders">Requires auth; queries `request.user.order_set.all()` and renders `accounts/orders.html` showing Order and Item details.</view>
+        </mapping>
+      </views_to_templates>
+
+      <cross_references>
+        <item>
+          <name>Session cart</name>
+          <description>The cart is stored in the Django session under the `cart` key. It is a mapping where keys are stringified movie IDs and values are quantity strings from POST. Multiple views reference it: `cart.index`, `cart.add`, `cart.clear`, `cart.purchase` and templates `cart/index.html` and `movies/show.html`.</description>
+        </item>
+
+        <item>
+          <name>Authentication</name>
+          <description>Django built-in auth is used. Views requiring authenticated users are decorated with `@login_required`. The signup flow uses a custom form in `accounts/forms.py`. Orders and review creation/edit/delete are tied to `request.user` associations.</description>
+        </item>
+
+        <item>
+          <name>Media and Images</name>
+          <description>`Movie.image` uses ImageField with `upload_to='movie_images/'`; media files are stored under `media/movie_images/`. `movies/show.html` and `movies/index.html` reference `movie.image.url`. `moviesstore/urls.py` includes static serving declarations for MEDIA when DEBUG is enabled.</description>
+        </item>
+
+        <item>
+          <name>Admin and Management</name>
+          <description>Models are registered in admin: `movies.admin` registers Movie (with `MovieAdmin`) and Review; `cart.admin` registers Order and Item. This implies easy administrative inspection and testing via the Django admin UI.</description>
+        </item>
+      </cross_references>
+
+      <data_flow_examples>
+        <example id="flow-1">
+          <title>User adds a movie to cart</title>
+          <steps>
+            <step>GET `/movies/` -> `movies.index` shows list</step>
+            <step>GET `/movies/<id>/` -> `movies.show` shows details and add-to-cart form</step>
+            <step>POST to `/cart/<id>/add/` with `quantity` -> `cart.add` validates existence, updates `request.session['cart']` and redirects to `cart.index`</step>
+            <step>GET `/cart/` -> `cart.index` uses session `cart` to fetch Movie objects and calculate total</step>
+          </steps>
+        </example>
+
+        <example id="flow-2">
+          <title>User completes a purchase</title>
+          <steps>
+            <step>User must be authenticated (login via `accounts.login`)</step>
+            <step>From `/cart/` click Purchase -> GET/POST to `/cart/purchase/`</step>
+            <step>`cart.purchase` computes total via `cart.utils.calculate_cart_total`, creates `Order` and `Item` records and empties session `cart`</step>
+            <step>Render `cart/purchase.html` with order id; orders are then visible in `accounts/orders`</step>
+          </steps>
+        </example>
+      </data_flow_examples>
+
+      <conventions>
+        <item>Views consistently build a `template_data` dictionary and pass it to templates under the same name; keep this convention when adding new views to minimize template changes.</item>
+        <item>Session cart keys are stored as strings; when interacting with models use `Movie.objects.filter(id__in=movie_ids)` where `movie_ids` are cast appropriately.</item>
+        <item>Authentication must be enforced server-side in views; decorator usage is the project pattern.</item>
+      </conventions>
+    </semantic_mapping>
+
+    <developer_notes>
+      <note>Session cart uses stringified keys for movie ids; when reading session, always coerce keys/values appropriately. `cart.utils.calculate_cart_total` expects `cart[str(movie.id)]` mapping.</note>
+      <note>Many views use `template_data` dict passed to templates; preserve these keys in new features for minimal template changes.</note>
+      <note>Authentication checks done via `@login_required` decorators; when adding API endpoints, mirror auth requirements.</note>
+      <note>Image handling: `ImageField` used; current media files present under `media/movie_images/`.</note>
+    </developer_notes>
+
+    <llm_prompts_examples>
+      <prompt id="P-1">"Produce a pull request that adds server-side validation to `cart.add` so quantities are integers between 1 and 99. Include tests for the validation and update the show.html template to display errors."</prompt>
+      <prompt id="P-2">"Generate a new API module `api/movies.py` with JSON endpoints for listing movies and retrieving movie details. Include URL patterns under `/api/movies/` and basic unit tests."</prompt>
+      <prompt id="P-3">"Refactor `movies/views.py` to add pagination and price filtering while keeping backward compatibility with existing templates."</prompt>
+    </llm_prompts_examples>
+
+    <parsing_helpers>
+      <helper>Fields are described under <models>. Use XPath-like queries to find model definitions when programmatically parsing.</helper>
+      <helper>Endpoint names follow Django `app.name` convention in the <urls> section. Use `name` attributes to locate reverse URL names.</helper>
+    </parsing_helpers>
+  </llm_guidance>
+
+  <quality_gates>
+    <build>Not executed here. Developer should run `python manage.py check` and `python manage.py test`.</build>
+    <linting>Not executed. Suggested: enable flake8 and mypy for deeper checks.</linting>
+    <tests>Minimal or missing tests. Add unit tests under each app's `tests.py` for new features.</tests>
+  </quality_gates>
+
+  <notes_and_caveats>
+    <note>Repository scan performed on 2025-09-15. Some generated files or additional modules may exist that were not read (e.g., large static assets or hidden config). This XML focuses on code paths relevant to feature development and LLM assistance.</note>
+    <note>Secrets found in `settings.py` (SECRET_KEY) — treat as insecure for production.</note>
+  </notes_and_caveats>
+</repository>
