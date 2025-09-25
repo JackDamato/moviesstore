@@ -9,4 +9,7 @@ urlpatterns = [
 
     path("requests/", views.requests_index, name="movies.requests_index"),
     path("requests/<int:id>/delete/", views.delete_request, name="movies.delete_request"),
+
+    path("petitions/", views.view_petitions, name="movies.view_petitions"),
+    path("petitions/<int:id>/approve/", views.approve_petition, name="movies.approve_petition"),
 ]

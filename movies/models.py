@@ -28,3 +28,12 @@ class MovieRequest(models.Model):
 
     def __str__(self):
         return f"{self.name} (by {self.user.username})"
+    
+
+class MoviePetition(models.Model):
+    id = models.AutoField(primary_key=True)
+    movie_name = models.CharField(max_length=255)
+    petition_description = models.TextField() # user description of why they want the movie
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE) # who requested the movie
+    votes = models.IntegerField(default=0) # number of votes
+    voters = models.ManyToManyField(User, related_name='voted_petitions', blank=True) # users who voted

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Movie, Review, MovieRequest
+from .models import Movie, Review, MovieRequest, MoviePetition
 from django import forms
 from django.contrib.auth.decorators import login_required
 
@@ -93,3 +93,40 @@ def delete_request(request, id):
     movie_request = get_object_or_404(MovieRequest, id=id, user=request.user)
     movie_request.delete()
     return redirect("movies.requests_index")
+
+
+class MoviePetitionForm(forms.ModelForm):
+    class Meta:
+        model = MoviePetition
+        fields = ["movie_name", "petition_description"]
+
+
+@login_required
+def view_petitions(request):
+    # display the petition page with all petitions and petition form
+    template_data = {}
+    if request.method == "POST":
+        form = MoviePetitionForm(request.POST)
+        if form.is_valid():
+            movie_petition = form.save(commit=False)
+            movie_petition.requested_by = request.user
+            movie_petition.save()
+        else:
+            form = MoviePetitionForm()
+
+    petitions = MoviePetition.objects.all().order_by("-votes")
+    template_data["petitions"] = petitions
+    template_data["form"] = MoviePetitionForm()
+    return render(request, "movies/petitions.html", {"template_data": template_data})
+
+
+@login_required
+def approve_petition(request, id):
+    petition = get_object_or_404(MoviePetition, id=id)
+    if request.user in petition.voters.all():
+        # user has already voted, do nothing
+        return redirect("movies.view_petitions")
+    petition.votes += 1
+    petition.voters.add(request.user)
+    petition.save()
+    return redirect("movies.view_petitions")

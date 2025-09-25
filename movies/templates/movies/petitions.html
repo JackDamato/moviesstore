@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-3">Movie Petitions</h1>
+    <p class="text-muted">Request a movie to be added and vote on other users' petitions!</p>
+
+    <!-- Petition creation form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Create a New Petition</h4>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'movies.view_petitions' %}">
+                {% csrf_token %}
+                {{ template_data.form.as_p }}
+                <button type="submit" class="btn btn-primary">Submit Petition</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Display petitions -->
+    <h3>Existing Petitions</h3>
+    {% if template_data.petitions %}
+        <ul class="list-group">
+            {% for petition in template_data.petitions %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5>{{ petition.movie_name }}</h5>
+                        <p>{{ petition.petition_description }}</p>
+                        <small class="text-muted">
+                            Requested by: {{ petition.requested_by.username }}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-success me-2">{{ petition.votes }} Votes</span>
+                        {% if user.is_authenticated and user not in petition.voters.all %}
+                            <a href="{% url 'movies.approve_petition' petition.id %}" class="btn btn-sm btn-outline-primary">
+                                Vote Yes
+                            </a>
+                        {% else %}
+                            <button class="btn btn-sm btn-secondary" disabled>Already Voted</button>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No petitions yet. Be the first to create one!</p>
+    {% endif %}
+</div>
+{% endblock %}
