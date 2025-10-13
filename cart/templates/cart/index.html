@@ -34,12 +34,29 @@
       </table>
     </div>
     <div class="row">
+      <form method="post" action="{% url 'cart.purchase' %}">
+        {% csrf_token %}
+        
+        <label for="location">Where are you watching from?</label>
+        <select id="location" name="location" required>
+          <option value="">Select your region</option>
+          <option value="NA">North America</option>
+          <option value="SA">South America</option>
+          <option value="EU">Europe</option>
+          <option value="AS">Asia</option>
+          <option value="AF">Africa</option>
+          <option value="OC">Oceania</option>
+          <option value="ME">Middle East</option>
+          <option value="CA">Central America</option>
+          <option value="CAR">Caribbean</option>
+        </select>
+        <button type="submit" class="btn bg-dark text-white mb-2">Purchase</button>
+      </form>
+
       <div class="text-end">
         <a class="btn btn-outline-secondary mb-2"><b>Total to pay:</b> ${{ template_data.cart_total }}</a>
         {% if template_data.movies_in_cart|length > 0 %}
-        <a href="{% url 'cart.purchase' %}"
-          class="btn bg-dark text-white mb-2">Purchase
-        </a>
+        
         <a href="{% url 'cart.clear' %}">
           <button class="btn btn-danger mb-2">
             Remove all movies from Cart
