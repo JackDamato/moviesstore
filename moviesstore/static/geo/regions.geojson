@@ -1,0 +1,14 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"code":"NA","name":"North America"},"geometry":{"type":"Polygon","coordinates":[[[-170,10],[-50,10],[-50,70],[-170,70],[-170,10]]]}} ,
+    {"type":"Feature","properties":{"code":"SA","name":"South America"},"geometry":{"type":"Polygon","coordinates":[[[-85,-60],[-30,-60],[-30,15],[-85,15],[-85,-60]]]}} ,
+    {"type":"Feature","properties":{"code":"EU","name":"Europe"},"geometry":{"type":"Polygon","coordinates":[[[-10,35],[40,35],[40,71],[-10,71],[-10,35]]]}} ,
+    {"type":"Feature","properties":{"code":"AS","name":"Asia"},"geometry":{"type":"Polygon","coordinates":[[[60,-10],[150,-10],[150,55],[60,55],[60,-10]]]}} ,
+    {"type":"Feature","properties":{"code":"AF","name":"Africa"},"geometry":{"type":"Polygon","coordinates":[[[-20,-35],[60,-35],[60,37],[-20,37],[-20,-35]]]}} ,
+    {"type":"Feature","properties":{"code":"OC","name":"Oceania"},"geometry":{"type":"Polygon","coordinates":[[[110,-50],[180,-50],[180,0],[110,0],[110,-50]]]}} ,
+    {"type":"Feature","properties":{"code":"ME","name":"Middle East"},"geometry":{"type":"Polygon","coordinates":[[[20,12],[60,12],[60,42],[20,42],[20,12]]]}} ,
+    {"type":"Feature","properties":{"code":"CA","name":"Central America"},"geometry":{"type":"Polygon","coordinates":[[[-100,5],[-70,5],[-70,20],[-100,20],[-100,5]]]}} ,
+    {"type":"Feature","properties":{"code":"CAR","name":"Caribbean"},"geometry":{"type":"Polygon","coordinates":[[[-85,10],[-60,10],[-60,25],[-85,25],[-85,10]]]}} 
+  ]
+}

@@ -1,1 +1,15 @@
-venv/
+# Python cache and environment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Django database
+db.sqlite3
+
+# Local environment and settings
+.env
+*.log
+
+# Static files
+/static/

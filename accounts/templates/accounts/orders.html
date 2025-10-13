@@ -20,6 +20,7 @@
                   <th scope="col">Item ID</th>
                   <th scope="col">Movie</th>
                   <th scope="col">Price</th>
+                  <th scope="col">Location</th>
                   <th scope="col">Quantity</th>
                 </tr>
               </thead>
@@ -34,6 +35,7 @@
                     </a>
                   </td>
                   <td>${{ item.movie.price }}</td>
+                  <td>{{ item.get_location_display }}</td>
                   <td>{{ item.quantity }}</td>
                 </tr>
                 {% endfor %}

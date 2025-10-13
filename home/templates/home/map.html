@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load static %}
+<style>
+  /* Make the map use most of the viewport and avoid being overlapped by footer */
+  #map { height: calc(80vh); margin-bottom: 120px; }
+  body { padding-bottom: 140px; }
+</style>
+<div class="container mt-3">
+  <h2>{{ template_data.title }}</h2>
+  <p>Click a pin to see top trending movies in the region.</p>
+  <div>
+    {% if user.is_authenticated %}
+      <button id="compare-btn" class="btn btn-secondary mb-2">Compare with my purchases</button>
+    {% else %}
+      <a class="btn btn-outline-primary mb-2" href="{% url 'accounts.login' %}">Login to compare</a>
+    {% endif %}
+  </div>
+  <div class="mb-2">
+    <label for="region-select" class="form-label">Select Region:</label>
+    <select id="region-select" class="form-select" style="max-width:320px;">
+      <option value="world">World view</option>
+    </select>
+  </div>
+  <div id="map" style="height: 600px;"></div>
+  <div id="map-debug" style="color: red; margin-top: 8px;"></div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{{ template_data.popularity_data|json_script:"pop-data" }}
+
+<script>
+// Minimal lat/lng positions for region pins - adjust as needed.
+const REGION_POSITIONS = {
+  'NA': [40.0, -100.0],
+  'SA': [-15.0, -60.0],
+  'EU': [50.0, 10.0],
+  'AS': [34.0, 100.0],
+  'AF': [0.0, 20.0],
+  'OC': [-25.0, 140.0],
+  'ME': [30.0, 45.0],
+  'CA': [15.0, -90.0],
+  'CAR': [15.0, -75.0]
+};
+
+const popularity = JSON.parse(document.getElementById('pop-data').textContent);
+
+// Populate region selector from popularity data (avoid template-level model access)
+const regionSelect = document.getElementById('region-select');
+Object.keys(popularity).forEach(code => {
+  const option = document.createElement('option');
+  option.value = code;
+  option.textContent = popularity[code].region_name || code;
+  regionSelect.appendChild(option);
+});
+
+// Initialize map with restricted zoom and no world wrapping
+const map = L.map('map', { minZoom: 2, maxZoom: 8, worldCopyJump: false }).setView([20, 0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  noWrap: true,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// Prevent panning outside the main world bounds so tiles don't repeat
+const southWest = L.latLng(-90, -180), northEast = L.latLng(90, 180);
+map.setMaxBounds(L.latLngBounds(southWest, northEast));
+
+// Prepare markers map so we can show/hide per-region
+const markersMap = {};
+Object.keys(popularity).forEach(code => {
+  const pos = REGION_POSITIONS[code] || [20,0];
+  const region = popularity[code];
+  let popupHtml = `<b>${region.region_name}</b><br/>`;
+  if (!region || !region.top || region.top.length === 0) {
+    popupHtml += '<i>No purchases yet</i>';
+  } else {
+    popupHtml += '<div class="region-top-list">';
+    region.top.forEach(t => {
+      const img = t.movie__image_url || '';
+      const movieUrl = '/movies/' + t.movie__id + '/';
+        popupHtml += '<div style="display:flex; align-items:center; margin-bottom:6px;">' +
+        (img ? `<img src="${img}" style="width:48px;height:70px;margin-right:8px;object-fit:cover;" />` : '') +
+        `<div><a href="${movieUrl}">${t.movie__name}</a><br/><small>${t.bought} trending</small></div>` +
+      '</div>';
+    });
+    popupHtml += '</div>';
+  }
+  const marker = L.marker(pos, { riseOnHover: true });
+  marker.bindPopup(popupHtml);
+  marker.on('click', function(e){ this.openPopup(); });
+  markersMap[code] = marker;
+  marker.addTo(map);
+});
+
+// Load GeoJSON to get region bounds for zooming when a region is selected
+// Load GeoJSON to get region bounds and create styled layers (but don't add them yet)
+let geoFeaturesByCode = {};
+let geoLayersByCode = {};
+let selectedRegionLayer = null;
+fetch('{% static "geo/regions.geojson" %}')
+  .then(r => r.json())
+  .then(geojson => {
+    geojson.features.forEach(f => {
+      const code = f.properties.code;
+      geoFeaturesByCode[code] = f;
+      // create a styled geoJSON layer for the region; don't add to map yet
+      const layer = L.geoJSON(f, {
+        style: {
+          color: '#ff7800',
+          weight: 2,
+          opacity: 0.9,
+          fillColor: '#fffcf2',
+          fillOpacity: 0.2
+        }
+      });
+      geoLayersByCode[code] = layer;
+    });
+  })
+  .catch(err => {
+    console.warn('Could not load geojson for region bounds, will fallback to centers', err);
+  });
+
+// Region selector behavior
+document.getElementById('region-select').addEventListener('change', function(e){
+  const val = e.target.value;
+  if (val === 'world') {
+    // remove any selected region overlay
+    if (selectedRegionLayer) {
+      try { map.removeLayer(selectedRegionLayer); } catch(e) {}
+      selectedRegionLayer = null;
+    }
+    // also remove any geoLayers that might have been added
+    Object.values(geoLayersByCode).forEach(layer => {
+      try { if (map.hasLayer(layer)) map.removeLayer(layer); } catch(e) {}
+    });
+    // show all markers and reset view/bounds
+    Object.values(markersMap).forEach(m => { 
+      if (!map.hasLayer(m)) m.addTo(map); 
+      try { m.closePopup(); } catch(e) {}
+    });
+    // close any open popups on the map
+    try { map.closePopup(); } catch(e) {}
+    map.setView([20,0], 2);
+    map.setMaxBounds(L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180)));
+    return;
+  }
+  // Hide all markers except the selected
+  Object.entries(markersMap).forEach(([code, m]) => {
+    if (code === val) {
+      if (!map.hasLayer(m)) m.addTo(map);
+    } else {
+      if (map.hasLayer(m)) map.removeLayer(m);
+    }
+  });
+
+  // Try to zoom to the region's geojson bounds first
+  const feature = geoFeaturesByCode[val];
+  if (feature) {
+    // remove previous selection layer
+    if (selectedRegionLayer) {
+      try { map.removeLayer(selectedRegionLayer); } catch(e) {}
+      selectedRegionLayer = null;
+    }
+    const layer = geoLayersByCode[val] || L.geoJSON(feature);
+    // add the styled region outline to the map
+    layer.addTo(map);
+    selectedRegionLayer = layer;
+    const bounds = layer.getBounds();
+    // Fit bounds and center on region; use maxZoom to avoid over-zooming
+    map.fitBounds(bounds.pad(0.2), { padding: [40,40], maxZoom: 7, animate: true });
+    // ensure the region (and marker popup) is centered after animation
+    map.once('moveend', () => {
+      const center = bounds.getCenter();
+      map.panTo(center, { animate: true });
+      const marker = markersMap[val];
+      if (marker) marker.openPopup();
+    });
+  } else {
+    // fallback: center on predefined position and zoom in (closer)
+    if (selectedRegionLayer) {
+      try { map.removeLayer(selectedRegionLayer); } catch(e) {}
+      selectedRegionLayer = null;
+    }
+    const pos = REGION_POSITIONS[val] || [20,0];
+    // animate a flyTo to make the zoom feel natural
+    map.flyTo(pos, 7, { animate: true, duration: 0.9 });
+    map.once('moveend', () => {
+      const marker = markersMap[val];
+      if (marker) marker.openPopup();
+    });
+  }
+});
+// Compare functionality placeholder: will call an API to fetch user's purchases and log matches
+document.getElementById('compare-btn')?.addEventListener('click', async () => {
+  try {
+    const resp = await fetch('{% url "home.api.user_purchases" %}');
+    if (!resp.ok) throw new Error('Network response not ok');
+    const data = await resp.json();
+    const userPurchases = data.user_purchases || {};
+    Object.keys(popularity).forEach(code => {
+      const region = popularity[code];
+      region.top.forEach(entry => {
+        if (userPurchases[entry.movie__id]) {
+          console.log('Match:', entry.movie__name, userPurchases[entry.movie__id]);
+        }
+      });
+    });
+    alert('Compare complete — check the console for matches.');
+  } catch (e) {
+    alert('Could not fetch your purchases. Are you logged in?');
+  }
+});
+</script>
+
+{% endblock content %}

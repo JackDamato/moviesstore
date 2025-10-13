@@ -14,10 +14,12 @@ class Movie(models.Model):
     def purchase_stats(self):
         # Local import avoids circular import
         from cart.models import Item, REGION_CHOICES
+        from django.db.models import Sum
         items = Item.objects.filter(movie=self)
         stats = {}
         for code, name in REGION_CHOICES:
-            stats[name] = items.filter(location=code).count()
+            agg = items.filter(location=code).aggregate(total=Sum('quantity'))
+            stats[name] = agg['total'] or 0
         return stats
 
 class Review(models.Model):
