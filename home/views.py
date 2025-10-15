@@ -80,21 +80,37 @@ def popularity_api(request):
 
 
 def user_purchases_api(request):
-    """Return the current user's aggregated purchases as JSON.
-
-    Requires authentication; returns mapping movie_id -> total_quantity.
-    """
+    """Return the current (or specified) user's purchases grouped by region."""
     from django.http import JsonResponse
     from django.db.models import Sum
+    from django.contrib.auth.models import User
     from cart.models import Item
 
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'authentication required'}, status=401)
+    # Support ?username=<name> param (optional)
+    username = request.GET.get("username", "").strip()
+    if username:
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'user not found'}, status=404)
+    else:
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'authentication required'}, status=401)
+        user = request.user
 
+    # Aggregate by both movie and region
     qs = (
-        Item.objects.filter(order__user=request.user)
-        .values('movie__id')
+        Item.objects.filter(order__user=user)
+        .values('movie__id', 'location')
         .annotate(total=Sum('quantity'))
     )
-    result = {entry['movie__id']: entry['total'] for entry in qs}
-    return JsonResponse({'user_purchases': result})
+
+    # Build nested structure: { region: { movie_id: qty } }
+    result = {}
+    for entry in qs:
+        region = entry['location']
+        movie_id = entry['movie__id']
+        qty = entry['total']
+        result.setdefault(region, {})[movie_id] = qty
+
+    return JsonResponse({'user_purchases': result, 'username': user.username})

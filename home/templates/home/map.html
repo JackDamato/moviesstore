@@ -194,22 +194,49 @@ document.getElementById('region-select').addEventListener('change', function(e){
 });
 // Compare functionality placeholder: will call an API to fetch user's purchases and log matches
 document.getElementById('compare-btn')?.addEventListener('click', async () => {
+  // Ask for a username (blank means current user)
+  const other = prompt('Enter a username to compare with (leave blank to compare with yourself):', '');
+  const endpoint = '{% url "home.api.user_purchases" %}' + (other ? (`?username=${encodeURIComponent(other)}`) : '');
   try {
-    const resp = await fetch('{% url "home.api.user_purchases" %}');
-    if (!resp.ok) throw new Error('Network response not ok');
+    const resp = await fetch(endpoint);
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      throw new Error(err.error || 'Network response not ok');
+    }
     const data = await resp.json();
     const userPurchases = data.user_purchases || {};
+    const who = data.username || (other || 'you');
+
     Object.keys(popularity).forEach(code => {
       const region = popularity[code];
-      region.top.forEach(entry => {
-        if (userPurchases[entry.movie__id]) {
-          console.log('Match:', entry.movie__name, userPurchases[entry.movie__id]);
-        }
-      });
-    });
-    alert('Compare complete — check the console for matches.');
+      const marker = markersMap[code];
+      if (!region || !region.top) return;
+      let popupHtml = `<b>${region.region_name}</b><br/>`;
+      popupHtml += '<div class="region-top-list">';
+    
+    const regionPurchases = userPurchases[code] || {};
+
+  region.top.forEach(t => {
+    const img = t.movie__image_url || '';
+    const movieUrl = '/movies/' + t.movie__id + '/';
+    const qty = regionPurchases[t.movie__id] || 0; 
+    const badge = qty
+      ? `<span style="background:#28a745;color:#fff;padding:2px 6px;border-radius:8px;margin-left:6px;font-size:0.8em;">${who}: ${qty}</span>`
+      : '';
+    popupHtml += '<div style="display:flex; align-items:center; margin-bottom:6px;">' +
+      (img ? `<img src="${img}" style="width:48px;height:70px;margin-right:8px;object-fit:cover;" />` : '') +
+      `<div><a href="${movieUrl}">${t.movie__name}</a><br/><small>${t.bought} trending ${badge}</small></div>` +
+      '</div>';
+  });
+
+  popupHtml += '</div>';
+  marker.setPopupContent(popupHtml);
+});
+
+
+    alert('Compare complete — popups updated to show matches for ' + (who || 'the user'));
   } catch (e) {
-    alert('Could not fetch your purchases. Are you logged in?');
+    alert('Could not fetch purchases: ' + e.message);
   }
 });
 </script>
