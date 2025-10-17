@@ -12,4 +12,6 @@ urlpatterns = [
 
     path("petitions/", views.view_petitions, name="movies.view_petitions"),
     path("petitions/<int:id>/approve/", views.approve_petition, name="movies.approve_petition"),
+    
+    path("<int:movie_id>/rate/", views.rate_movie, name="movies.rate_movie"),
 ]

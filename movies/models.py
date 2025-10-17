@@ -14,11 +14,29 @@ class Movie(models.Model):
     def purchase_stats(self):
         # Local import avoids circular import
         from cart.models import Item, REGION_CHOICES
+        from django.db.models import Sum
         items = Item.objects.filter(movie=self)
         stats = {}
         for code, name in REGION_CHOICES:
-            stats[name] = items.filter(location=code).count()
+            agg = items.filter(location=code).aggregate(total=Sum('quantity'))
+            stats[name] = agg['total'] or 0
         return stats
+    
+    def average_rating(self):
+        ratings = self.ratings.all()
+        if ratings.exists():
+            average = sum(float(r.score) for r in ratings) / ratings.count()
+            return round(average, 1)
+        return 0.0
+
+class Rating(models.Model):
+    movie = models.ForeignKey(Movie, related_name="ratings", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    score = models.PositiveSmallIntegerField() # THIS WILL BETWEEN 1-5
+    created_at = models.DateTimeField(auto_now_add=True) # Current date
+
+    class Meta:
+        unique_together = ('movie', 'user') # primary key, UNIQUE
 
 class Review(models.Model):
     id = models.AutoField(primary_key=True)
