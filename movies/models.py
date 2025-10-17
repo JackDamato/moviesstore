@@ -21,6 +21,22 @@ class Movie(models.Model):
             agg = items.filter(location=code).aggregate(total=Sum('quantity'))
             stats[name] = agg['total'] or 0
         return stats
+    def average_rating(self):
+        ratings = self.ratings.all()
+        if ratings.exists():
+            total = sum(float(rating.score) for rating in ratings)
+            return total / ratings.count()
+        return 0
+
+
+class Rating(models.Model):
+    movie = models.ForeignKey(Movie, related_name='ratings', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    score = models.PositiveSmallIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('movie', 'user') # ONLY ONE RATING PER USER
 
 class Review(models.Model):
     id = models.AutoField(primary_key=True)

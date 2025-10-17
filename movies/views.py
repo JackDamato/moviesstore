@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Movie, Review, MovieRequest, MoviePetition
+from .models import Movie, Review, MovieRequest, MoviePetition, Rating
 from django import forms
 from django.contrib.auth.decorators import login_required
 
@@ -18,12 +18,29 @@ def index(request):
 def show(request, id):
     movie = Movie.objects.get(id=id)
     reviews = Review.objects.filter(movie=movie)
-    template_data = {}
-    template_data['title'] = movie.name
-    template_data['movie'] = movie
-    template_data['reviews'] = reviews
+    user_rating = None 
+    if request.user.is_authenticated:
+        user_rating = movie.ratings.filter(user=request.user).first()
+         # Get the user's rating if it exists
+        if user_rating:
+            user_rating = user_rating.score
+            
+    template_data = {'title': movie.name, 'movie': movie, 'reviews': reviews, "average_rating": movie.average_rating(), 'user_rating': user_rating,}
+    
     return render(request, 'movies/show.html',
                   {'template_data': template_data})
+
+@login_required
+def rate_movie(request, id):
+    if request.method == 'POST':
+        movie = Movie.objects.get(id=id)
+        rating = int(request.POST.get('score'))
+        if 1 <= rating <= 5:
+            rating, created = Rating.objects.update_or_create(movie=movie, user=request.user, defaults={'score': rating})
+        return redirect('movies.show', id=id)
+    else:
+        return redirect('movies.show', id=id)
+
 
 @login_required
 def create_review(request, id):
