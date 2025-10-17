@@ -85,29 +85,38 @@
         <img src="{{ template_data.movie.image.url }}" class="rounded img-card-400" />
         <hr />
         {% if user.is_authenticated %}
-        <h2>Rating</h2>
-        <hr />
         <div class="card shadow p-3 mb-4 rounded">
           <div class="card-body">
-            <b class="text-start">Enter your rating (1-5 stars):
+            <b class="text-start"> Rate this movie:
             </b><br /><br />
-            <p>Your rating: {{ template_data.user_rating }}</p>
-              <form method="POST" action="{% url 'movies.rate_movie' template_data.movie.id %}">
-                {% csrf_token %}
-                <select name="score" required>
-                  <option value="" disabled selected>Select your rating</option>
-                  {% for i in "12345" %}
-                  <option value="{{ i }}">{{ i }} Star{% if i != "1" %}s{% endif %}</option>
-                  {% endfor %}
+            <p>
+              <b>Your Rating:</b>
+              {% if template_data.user_rating %}
+                {{ template_data.user_rating }} / 5
+              {% else %}
+                no rating yet
+              {% endif %}
+            </p>
+            <form method="POST" action="{% url 'movies.rate_movie' id=template_data.movie.id %}">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label for="rating" class="form-label">Select Rating (1 to 5 stars):</label>
+                <select class="form-select" id="score" name="score" required>
+                  <!-- options 1-5 -->
+                  <option value="1">1 Star</option>
+                  <option value="2">2 Stars</option>
+                  <option value="3">3 Stars</option>
+                  <option value="4">4 Stars</option>
+                  <option value="5">5 Stars</option>
                 </select>
-                <button type="submit" class="btn bg-dark text-white">Submit Rating</button>
-              </form>
-
+                
+                <button type="submit" class="btn bg-dark text-white">
+                  Submit
+                </button>
+              </div> 
           </div>
         </div>
-        {% endif %}
-  
-
+        {% endif %}        
       </div>
     </div>
   </div>
