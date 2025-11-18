@@ -7,26 +7,37 @@
       <div class="col mx-auto mb-3">
         <h2>List of Movies</h2>
         <hr />
+
+        <!-- SEARCH FORM -->
         <p class="card-text">
           <form method="GET">
             <div class="row">
               <div class="col-auto">
                 <div class="input-group col-auto">
-                  <div class="input-group-text">
-                    Search</div>
-                  <input type="text" class="form-control"
-                    name="search">
+                  <div class="input-group-text">Search</div>
+                  <input type="text" class="form-control" name="search" value="{{ request.GET.search }}">
                 </div>
               </div>
               <div class="col-auto">
-                <button class="btn bg-dark text-white"
-                  type="submit">Search</button>
+                <button class="btn bg-dark text-white" type="submit">Search</button>
               </div>
             </div>
           </form>
         </p>
+
+        <!-- SORTING LINKS -->
+        <div class="mt-3">
+          <strong>Sort:</strong>
+          <a href="?sort=alpha_asc">A → Z</a> |
+          <a href="?sort=alpha_desc">Z → A</a> |
+          <a href="?sort=len_asc">Short → Long</a> |
+          <a href="?sort=len_desc">Long → Short</a>
+        </div>
+
       </div>
     </div>
+
+    <!-- MOVIE GRID -->
     <div class="row">
       {% for movie in template_data.movies %}
       <div class="col-md-4 col-lg-3 mb-2">
@@ -41,6 +52,7 @@
       </div>
       {% endfor %}
     </div>
+
   </div>
 </div>
 {% endblock content %}
