@@ -5,30 +5,52 @@ from django.contrib.auth.decorators import login_required
 
 def index(request):
     search_term = request.GET.get('search')
+    sort = request.GET.get('sort')
+
+    # Base queryset
     if search_term:
         movies = Movie.objects.filter(name__icontains=search_term)
     else:
         movies = Movie.objects.all()
+
+    # Sorting logic
+    if sort == "alpha_asc":
+        movies = movies.order_by("name")
+    elif sort == "alpha_desc":
+        movies = movies.order_by("-name")
+    elif sort == "len_asc":
+        movies = sorted(movies, key=lambda m: len(m.name))
+    elif sort == "len_desc":
+        movies = sorted(movies, key=lambda m: len(m.name), reverse=True)
+
     template_data = {}
     template_data['title'] = 'Movies'
     template_data['movies'] = movies
+
     return render(request, 'movies/index.html',
                   {'template_data': template_data})
+
 
 def show(request, id):
     movie = Movie.objects.get(id=id)
     reviews = Review.objects.filter(movie=movie)
-    user_rating = None 
+    user_rating = None
     if request.user.is_authenticated:
-        user_rating = movie.ratings.filter(user=request.user).first()
-         # Get the user's rating if it exists
-        if user_rating:
-            user_rating = user_rating.score
-            
-    template_data = {'title': movie.name, 'movie': movie, 'reviews': reviews, "average_rating": movie.average_rating(), 'user_rating': user_rating,}
-    
+        user_rating_obj = movie.ratings.filter(user=request.user).first()
+        if user_rating_obj:
+            user_rating = user_rating_obj.score
+
+    template_data = {
+        'title': movie.name,
+        'movie': movie,
+        'reviews': reviews,
+        "average_rating": movie.average_rating(),
+        'user_rating': user_rating,
+    }
+
     return render(request, 'movies/show.html',
                   {'template_data': template_data})
+
 
 @login_required
 def rate_movie(request, id):
@@ -36,7 +58,11 @@ def rate_movie(request, id):
         movie = Movie.objects.get(id=id)
         rating = int(request.POST.get('score'))
         if 1 <= rating <= 5:
-            rating, created = Rating.objects.update_or_create(movie=movie, user=request.user, defaults={'score': rating})
+            Rating.objects.update_or_create(
+                movie=movie,
+                user=request.user,
+                defaults={'score': rating}
+            )
         return redirect('movies.show', id=id)
     else:
         return redirect('movies.show', id=id)
@@ -54,30 +80,33 @@ def create_review(request, id):
         return redirect('movies.show', id=id)
     else:
         return redirect('movies.show', id=id)
-    
+
+
 @login_required
 def edit_review(request, id, review_id):
     review = get_object_or_404(Review, id=review_id)
     if request.user != review.user:
         return redirect('movies.show', id=id)
+
     if request.method == 'GET':
         template_data = {}
         template_data['title'] = 'Edit Review'
         template_data['review'] = review
         return render(request, 'movies/edit_review.html',
                       {'template_data': template_data})
+
     elif request.method == 'POST' and request.POST['comment'] != '':
-        review = Review.objects.get(id=review_id)
         review.comment = request.POST['comment']
         review.save()
         return redirect('movies.show', id=id)
+
     else:
         return redirect('movies.show', id=id)
-    
+
+
 @login_required
 def delete_review(request, id, review_id):
-    review = get_object_or_404(Review, id=review_id,
-        user=request.user)
+    review = get_object_or_404(Review, id=review_id, user=request.user)
     review.delete()
     return redirect('movies.show', id=id)
 
@@ -86,6 +115,7 @@ class MovieRequestForm(forms.ModelForm):
     class Meta:
         model = MovieRequest
         fields = ["name", "description"]
+
 
 @login_required
 def requests_index(request):
@@ -105,6 +135,7 @@ def requests_index(request):
     template_data["requests"] = user_requests
     return render(request, "movies/requests.html", {"template_data": template_data})
 
+
 @login_required
 def delete_request(request, id):
     movie_request = get_object_or_404(MovieRequest, id=id, user=request.user)
@@ -120,7 +151,6 @@ class MoviePetitionForm(forms.ModelForm):
 
 @login_required
 def view_petitions(request):
-    # display the petition page with all petitions and petition form
     template_data = {}
     if request.method == "POST":
         form = MoviePetitionForm(request.POST)
@@ -141,7 +171,6 @@ def view_petitions(request):
 def approve_petition(request, id):
     petition = get_object_or_404(MoviePetition, id=id)
     if request.user in petition.voters.all():
-        # user has already voted, do nothing
         return redirect("movies.view_petitions")
     petition.votes += 1
     petition.voters.add(request.user)
